@@ -137,7 +137,12 @@ int main(int argc, FAR char *argv[])
   pthread_t si_thread;
   pthread_t so_thread;
 
-  if (argc == 2)
+
+  if (argc == 1)
+    {
+      fd = open("/dev/ttyUSB0", O_RDWR);
+    }
+  else if (argc == 2)
     {
       fd = open(argv[1], O_RDWR);
     }
