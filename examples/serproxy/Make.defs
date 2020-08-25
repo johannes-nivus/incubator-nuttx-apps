@@ -1,5 +1,5 @@
 ############################################################################
-# apps/examples/serrelay/Makefile
+# apps/examples/serproxy/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,15 +18,6 @@
 #
 ############################################################################
 
-include $(APPDIR)/Make.defs
-
-# Mindlessly simple console loopack test
-
-PROGNAME = serrelay
-PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
-MODULE = $(CONFIG_EXAMPLES_SERRELAY)
-
-MAINSRC = serrelay_main.c
-
-include $(APPDIR)/Application.mk
+ifneq ($(CONFIG_EXAMPLES_SERPROXY),)
+CONFIGURED_APPS += $(APPDIR)/examples/serproxy
+endif

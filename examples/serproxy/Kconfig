@@ -3,11 +3,11 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-config EXAMPLES_SERRELAY
-	tristate "Serial relay example"
+config EXAMPLES_SERPROXY
+	tristate "Serial proxy example"
 	default n
 	---help---
-		Enable the serial relay example
+		Enable the serial proxy example
 
-if EXAMPLES_SERRELAY
+if EXAMPLES_SERPROXY
 endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/serloop/serrelay_main.c
+ * examples/serloop/serproxy_main.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -29,12 +29,25 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include <sys/ioctl.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+#define POLL_WAIT 100
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct fd_pair
+{
+  int fd_in;
+  int fd_out;
+};
 
 /****************************************************************************
  * Private Data
@@ -45,17 +58,26 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: serial_in
+ * Name: serial_io
  *
  * Description:
- *   Read data from serial and write to pts
+ *   Transfer data from in to out
  *
  ****************************************************************************/
 
-static void serial_in(int fd)
+static void serial_io(pthread_addr_t arg)
 {
-  uint8_t ch;
+  struct pollfd fdp;
+  char buffer[64];
   int ret;
+  int fdin;
+  int fdout;
+
+  fdin  = ((struct fd_pair *)arg)->fd_in;
+  fdout = ((struct fd_pair *)arg)->fd_out;
+
+  fdp.fd = fdin;
+  fdp.events = POLLIN;
 
   /* Run forever */
 
@@ -63,60 +85,25 @@ static void serial_in(int fd)
     {
       ssize_t len;
 
-      len = read(fd, &ch, 1);
-      if (len < 0)
+      ret = poll(&fdp, 1, POLL_WAIT);
+      if (ret > 0)
         {
-          fprintf(stderr,
-                  "ERROR Failed to read from serial: %d\n",
-                  errno);
-        }
-      else if (len > 0)
-        {
-          ret = write(1, &ch, len);
-          if (ret < 0)
+          len = read(fdin, buffer, sizeof(buffer));
+          if (len < 0)
             {
               fprintf(stderr,
-                      "Failed to write to serial: %d\n",
+                      "ERROR Failed to read from in: %d\n",
                       errno);
             }
-        }
-    }
-}
-
-/****************************************************************************
- * Name: serial_out
- *
- * Description:
- *   Read data from pts and write to serial
- *
- ****************************************************************************/
-
-static void serial_out(int fd)
-{
-  uint8_t ch;
-  int ret;
-
-  /* Run forever */
-
-  while (true)
-    {
-      ssize_t len;
-
-      len = read(0, &ch, 1);
-      if (len < 0)
-        {
-          fprintf(stderr,
-                  "ERROR Failed to read from serial: %d\n",
-                  errno);
-        }
-      else if (len > 0)
-        {
-          ret = write(fd, &ch, len);
-          if (ret < 0)
+          else if (len > 0)
             {
-              fprintf(stderr,
-                      "Failed to write to serial: %d\n",
-                      errno);
+              ret = write(fdout, buffer, len);
+              if (ret < 0)
+                {
+                  fprintf(stderr,
+                          "Failed to write to out: %d\n",
+                          errno);
+                }
             }
         }
     }
@@ -127,7 +114,7 @@ static void serial_out(int fd)
  ****************************************************************************/
 
 /****************************************************************************
- * serrelay_main
+ * serproxy_main
  ****************************************************************************/
 
 int main(int argc, FAR char *argv[])
@@ -137,6 +124,7 @@ int main(int argc, FAR char *argv[])
   pthread_t si_thread;
   pthread_t so_thread;
 
+  struct fd_pair fds[2];
 
   if (argc == 1)
     {
@@ -152,24 +140,27 @@ int main(int argc, FAR char *argv[])
       return EXIT_FAILURE;
     }
 
+  fds[0].fd_in  = fd;
+  fds[0].fd_out = 1;
+
+  /* Start a thread to read from serial */
   ret = pthread_create(&si_thread, NULL,
-                       (pthread_startroutine_t)serial_in,
-                       (pthread_addr_t)fd);
+                       (pthread_startroutine_t)serial_io,
+                       (pthread_addr_t)&fds[0]);
   if (ret != 0)
     {
-      /* Can't do output because stdout and stderr are redirected */
-
       return EXIT_FAILURE;
     }
 
+  fds[1].fd_in  = 0;
+  fds[1].fd_out = fd;
+
   /* Start a thread to write to serial */
   ret = pthread_create(&so_thread, NULL,
-                       (pthread_startroutine_t)serial_out,
-                       (pthread_addr_t)fd);
+                       (pthread_startroutine_t)serial_io,
+                       (pthread_addr_t)&fds[1]);
   if (ret != 0)
     {
-      /* Can't do output because stdout and stderr are redirected */
-
       return EXIT_FAILURE;
     }
 
