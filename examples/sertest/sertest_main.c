@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/serproxy_main.c
+ * examples/sertest_main.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -68,7 +68,7 @@ struct fd_pair
 static void serial_io(pthread_addr_t arg)
 {
   struct pollfd fdp;
-  char buffer[64];
+  char buffer[4];
   int ret;
   int fdin;
   int fdout;
@@ -122,7 +122,14 @@ int main(int argc, FAR char *argv[])
   int fd = -1;
   int ret;
   pthread_t si_thread;
-  pthread_t so_thread;
+
+  const char teststr[] = "Lorem ipsum dolor sit amet, consetetur sadipscing "
+                         "elitr, sed diam nonumy eirmod tempor invidunt ut "
+                         "labore et dolore magna aliquyam erat, sed diam "
+                         "voluptua. At vero eos et accusam et justo duo "
+                         "dolores et ea rebum. Stet clita kasd gubergren, "
+                         "no sea takimata sanctus est Lorem ipsum dolor "
+                         "sit amet. Lorem ipsum dolor sit am";
 
   struct fd_pair fds[2];
 
@@ -152,21 +159,10 @@ int main(int argc, FAR char *argv[])
       return EXIT_FAILURE;
     }
 
-  fds[1].fd_in  = 0;
-  fds[1].fd_out = fd;
-
-  /* Start a thread to write to serial */
-  ret = pthread_create(&so_thread, NULL,
-                       (pthread_startroutine_t)serial_io,
-                       (pthread_addr_t)&fds[1]);
-  if (ret != 0)
-    {
-      return EXIT_FAILURE;
-    }
-
   for (;;)
     {
-      usleep(100000);
+      write(fd, teststr, sizeof(teststr)-1);
+      usleep(10000);
     }
 
 
